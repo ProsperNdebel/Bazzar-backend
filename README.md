@@ -1,47 +1,59 @@
 # Bazaar API
 
-FastAPI + Postgres backend for the Bazaar app.
+FastAPI backend for the Bazaar app. Runs on **SQLite in development** (zero setup)
+and **Postgres in production**, from one codebase.
 
 ## Stack
 - FastAPI (async)
-- SQLAlchemy 2.0 (async) + asyncpg
-- Postgres 16
+- SQLAlchemy 2.0 (async)
+- SQLite (dev, via aiosqlite) / Postgres (prod, via asyncpg)
 - JWT auth (phone + password)
 
-## Prerequisites: Postgres running locally
+## Run (development, SQLite)
 
-**macOS (Homebrew):**
-```bash
-brew install postgresql@16
-brew services start postgresql@16
-# create the role + database that .env.example expects
-psql -d template1 -c "CREATE ROLE bazaar LOGIN PASSWORD 'bazaar';" \
-                   -c "CREATE DATABASE bazaar OWNER bazaar;"
-```
-
-**Ubuntu / Debian:**
-```bash
-sudo apt install postgresql
-sudo -u postgres psql -c "CREATE USER bazaar WITH PASSWORD 'bazaar';" \
-                      -c "CREATE DATABASE bazaar OWNER bazaar;"
-```
-
-No local Postgres at all? Point `DATABASE_URL` at a free hosted instance
-(Neon, Supabase, Railway) instead. Keep the `+asyncpg` in the scheme.
-
-## Run
+No database server needed. SQLite is a local file.
 
 ```bash
-python -m venv .venv && source .venv/bin/activate
+python -m venv .venv && source .venv/bin/activate   # use Python 3.13
 pip install -r requirements.txt
 
-cp .env.example .env        # edit JWT_SECRET
+cp .env.example .env        # edit JWT_SECRET; leave DATABASE_URL unset for SQLite
 
-python -m app.seed          # loads the two stores from src/data/stores.js
+python -m app.seed          # creates ./bazaar.db and loads the starter stores
 uvicorn app.main:app --reload
 ```
 
 Interactive docs at http://localhost:8000/docs
+
+To start over, delete the file: `rm bazaar.db && python -m app.seed`.
+
+## Run (production, Postgres)
+
+Set `DATABASE_URL` to a Postgres URL and everything else is identical:
+
+```bash
+export DATABASE_URL=postgresql+asyncpg://USER:PASS@HOST:5432/DBNAME
+python -m app.seed
+uvicorn app.main:app
+```
+
+Managed Postgres (Neon, Supabase, Railway, Render) all give you a URL like this.
+Keep the `+asyncpg` in the scheme.
+
+## How one schema runs on both engines
+The models use portable column types so nothing is Postgres-only:
+- `Uuid` -> native `uuid` on Postgres, `CHAR(32)` on SQLite
+- `JSON` (for `tags`, `categories`, `header_bg`) -> JSON on both, instead of a
+  Postgres-only `ARRAY`
+
+That avoids the classic "SQLite doesn't support UUID" crash you get when a
+Postgres-shaped schema is pointed at SQLite. On SQLite, foreign keys are enabled
+per connection so `ON DELETE CASCADE` behaves like it does on Postgres.
+
+One caveat to know: SQLite is a single-writer file, so it will not surface
+concurrency issues (lock contention, race conditions) that Postgres would. Dev
+on SQLite is fine; load-test and stage on Postgres before trusting behavior under
+real traffic.
 
 ## Endpoints
 | Method | Path              | Auth | Purpose                                  |
@@ -66,8 +78,9 @@ In `src/data/stores.js`, replace the static `STORES` export with a fetch to
 `GET /stores`. The response shape matches the fields the screens already read.
 
 ## Next steps
-- Alembic migrations (drop `create_all` on startup once you have real data)
+- Alembic migrations (drop `create_all` on startup once you have real data).
+  Note: with two backends, generate migrations against Postgres, since that is
+  what production runs.
 - Phone OTP instead of password (Twilio / Africa's Talking)
 - Stripe (or local rail) payment intent tied to order creation
 - Store admin auth + product CRUD
-- expo-location driven distance, computed per request

@@ -5,7 +5,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    database_url: str = "postgresql+asyncpg://bazaar:bazaar@localhost:5432/bazaar"
+    # Dev default is SQLite (zero setup). Production overrides this via the
+    # DATABASE_URL env var with a Postgres URL (postgresql+asyncpg://...).
+    database_url: str = "sqlite+aiosqlite:///./bazaar.db"
 
     jwt_secret: str = "change-me-in-production"
     jwt_algorithm: str = "HS256"
