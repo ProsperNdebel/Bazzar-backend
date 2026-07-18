@@ -7,7 +7,7 @@ import asyncio
 
 from sqlalchemy import func, select
 
-from app.database import Base, SessionLocal, engine
+from app.database import SessionLocal, engine
 from app.models import Cuisine, Product, Store
 
 CUISINES = [
@@ -72,9 +72,6 @@ STORES = [
 
 
 async def seed() -> None:
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-
     async with SessionLocal() as db:
         existing = await db.scalar(select(func.count()).select_from(Store))
         if existing:
