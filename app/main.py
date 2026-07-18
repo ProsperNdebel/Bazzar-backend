@@ -9,10 +9,9 @@ from app.routers import auth, cuisines, orders, stores
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # For the MVP we create tables on startup. Swap in Alembic migrations
-    # before you have data you care about (see README).
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    # Schema is owned by Alembic now. Run `alembic upgrade head` to create or
+    # migrate tables — startup no longer calls create_all, so the two can't
+    # disagree about the schema.
     yield
 
 

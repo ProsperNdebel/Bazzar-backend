@@ -60,6 +60,17 @@ class Store(Base):
         back_populates="store", cascade="all, delete-orphan"
     )
 
+    # Convenience fields for clients: every store card needs the flag and the
+    # human cuisine label, so serve them rather than making callers join.
+    # Requires the `cuisine` relationship to be eagerly loaded (see routers).
+    @property
+    def flag(self) -> str | None:
+        return self.cuisine.flag if self.cuisine else None
+
+    @property
+    def cuisine_label(self) -> str | None:
+        return self.cuisine.label if self.cuisine else None
+
 
 class Product(Base):
     __tablename__ = "products"
@@ -84,10 +95,18 @@ class User(Base):
     __tablename__ = "users"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=_uuid)
-    phone: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
-    email: Mapped[str | None] = mapped_column(String, unique=True)
+    # phone + password_hash are now nullable: a Google-only user has neither.
+    # The invariant "phone+password OR google_id" is enforced in the auth
+    # routes, not the schema (SQLite can't express it as a table constraint
+    # portably). email is the linking key, so it's unique + indexed.
+    phone: Mapped[str | None] = mapped_column(String, unique=True, index=True)
+    email: Mapped[str | None] = mapped_column(String, unique=True, index=True)
     name: Mapped[str | None] = mapped_column(String)
-    password_hash: Mapped[str] = mapped_column(String, nullable=False)
+    password_hash: Mapped[str | None] = mapped_column(String)
+    google_id: Mapped[str | None] = mapped_column(String, unique=True, index=True)
+    # How the account was first created: 'phone' or 'google'. Informational;
+    # a linked account keeps its original provider.
+    auth_provider: Mapped[str] = mapped_column(String, nullable=False, default="phone")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     orders: Mapped[list["Order"]] = relationship(back_populates="user")
