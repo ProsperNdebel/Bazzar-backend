@@ -34,6 +34,8 @@ class StoreSummary(ORMModel):
     origin: str
     emoji: str | None
     cuisine_id: str | None
+    cuisine_label: str | None
+    flag: str | None
     rating: float
     review_count: int
     delivery_fee: float
@@ -61,6 +63,12 @@ class LoginIn(BaseModel):
     password: str
 
 
+class GoogleAuthIn(BaseModel):
+    # The Google ID token (a JWT) obtained by the app from the Google sign-in
+    # flow. The server verifies it against Google's public keys.
+    id_token: str
+
+
 class TokenOut(BaseModel):
     access_token: str
     token_type: str = "bearer"
@@ -68,9 +76,10 @@ class TokenOut(BaseModel):
 
 class UserOut(ORMModel):
     id: uuid.UUID
-    phone: str
+    phone: str | None
     email: str | None
     name: str | None
+    auth_provider: str
 
 
 # ---- Orders ----
