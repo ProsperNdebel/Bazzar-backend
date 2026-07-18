@@ -15,6 +15,15 @@ class Settings(BaseSettings):
 
     tax_rate: float = 0.095  # matches the 9.5% used in the app's CartScreen
 
+    # Accepted Google OAuth client IDs (audiences). A token is valid only if its
+    # aud matches one of these. iOS, Android and web each get their own ID, so
+    # this is a comma-separated list in the env: GOOGLE_CLIENT_IDS=a,b,c
+    google_client_ids: str = ""
+
+    @property
+    def google_client_id_list(self) -> list[str]:
+        return [c.strip() for c in self.google_client_ids.split(",") if c.strip()]
+
 
 @lru_cache
 def get_settings() -> Settings:
